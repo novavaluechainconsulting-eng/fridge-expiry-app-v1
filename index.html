@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>BiteAlert</title>
+  <style>
+    /* Theme Colors */
+    :root {
+      --mint: #a8edea;
+      --light-blue: #d0f0fd;
+      --peach: #ffd6ba;
+      --dark-green: #2c7a7b;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--mint), var(--light-blue), var(--peach));
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--dark-green);
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    input, button {
+      padding: 12px;
+      font-size: 15px;
+      border: none;
+      border-radius: 8px;
+    }
+
+    input[type="text"], input[type="date"] {
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: var(--dark-green);
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #285e61;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--light-blue);
+      margin-bottom: 8px;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    li:nth-child(even) {
+      background: var(--peach);
+    }
+
+    .expired {
+      color: red;
+      font-weight: bold;
+    }
+
+    .warning {
+      color: orange;
+    }
+  </style>
+</head>
+<body>
+  <h1>BiteAlert</h1>
+  <div class="container">
+    <form id="foodForm">
+      <input type="text" id="foodName" placeholder="ชื่ออาหาร" required>
+      <input type="date" id="expiryDate" required>
+      <button type="submit">เพิ่มรายการ</button>
+    </form>
+    <ul id="foodList"></ul>
+  </div>
+
+  <script>
+    const form = document.getElementById("foodForm");
+    const list = document.getElementById("foodList");
+
+    form.addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      const name = document.getElementById("foodName").value;
+      const date = new Date(document.getElementById("expiryDate").value);
+      const today = new Date();
+      const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+
+      let status = "";
+      if (diffDays < 0) {
+        status = "<span class='expired'>หมดอายุแล้ว</span>";
+      } else if (diffDays === 0) {
+        status = "<span class='warning'>หมดอายุวันนี้</span>";
+      } else {
+        status = `เหลือ ${diffDays} วัน`;
+      }
+
+      const li = document.createElement("li");
+      li.innerHTML = `${name} - ${status}`;
+      list.appendChild(li);
+
+      form.reset();
+    });
+  </script>
+</body>
+</html>
