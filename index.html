@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Expiry App</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(to right,#d4fcf9,#fffbd5); margin:0; padding:0; }
+    header { background:#4CAF50; color:white; padding:1em; text-align:center; }
+    .form-section { padding:1em; background:#f0f8ff; }
+    input, select, button { margin:0.5em 0; padding:0.5em; }
+    table { width:100%; border-collapse:collapse; margin-top:1em; }
+    th, td { border:1px solid #ccc; padding:0.5em; text-align:left; }
+    .status-green { background:#b2fab4; }
+    .status-yellow { background:#fff9c4; }
+    .status-red { background:#ffcdd2; }
+    .status-gray { background:#eeeeee; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🥦 Food Expiry Reminder</h1>
+  <button onclick="enableNotify()">เปิดการแจ้งเตือน</button>
+</header>
+<section class="form-section">
+  <h2>เพิ่มอาหาร</h2>
+  <input id="name" placeholder="ชื่ออาหาร"><br>
+  <input id="type" placeholder="ประเภท"><br>
+  <input id="storage" placeholder="วิธีเก็บรักษา"><br>
+  วันซื้อ: <input type="date" id="buyDate"><br>
+  วันหมดอายุ: <input type="date" id="expDate"><br>
+  เตือนล่วงหน้า (วัน): <input type="number" id="notifyDays" value="2"><br>
+  <button onclick="addItem()">เพิ่ม</button>
+</section>
+
+<section>
+  <h2>รายการอาหาร</h2>
+  <table id="itemTable">
+    <thead><tr><th>ชื่อ</th><th>ประเภท</th><th>วิธีเก็บ</th><th>วันซื้อ</th><th>วันหมดอายุ</th><th>เหลือวัน</th><th>การแจ้งเตือน</th><th>การทำงาน</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>ปฏิทิน</h2>
+  <div id="calendar"></div>
+</section>
+
+<section>
+  <h2>คำแนะนำการเก็บรักษา</h2>
+  <div id="tips"></div>
+</section>
+
+<script>
+let items = JSON.parse(localStorage.getItem("food-items")||"[]");
+
+function save(){ localStorage.setItem("food-items",JSON.stringify(items)); render(); }
+
+function daysLeft(expDate){
+  const today = new Date().toISOString().slice(0,10);
+  return Math.round((new Date(expDate)-new Date(today))/86400000);
+}
+function statusCode(d){
+  if(d<0) return 'gray';
+  if(d==0 || d<=2) return 'red';
+  if(d<=5) return 'yellow';
+  return 'green';
+}
+function addItem(){
+  const obj={
+    id:Date.now(),
+    name:document.getElementById('name').value,
+    type:document.getElementById('type').value,
+    storage:document.getElementById('storage').value,
+    buyDate:document.getElementById('buyDate').value,
+    expDate:document.getElementById('expDate').value,
+    notifyDays:document.getElementById('notifyDays').value,
+    notifyOn:true
+  };
+  items.push(obj); save();
+}
+function delItem(id){ items=items.filter(it=>it.id!==id); save(); }
+function toggleNotify(id){ const it=items.find(i=>i.id===id); it.notifyOn=!it.notifyOn; save(); }
+function render(){
+  const tbody=document.querySelector('#itemTable tbody');
+  tbody.innerHTML="";
+  items.forEach(it=>{
+    const d=daysLeft(it.expDate);
+    const row=document.createElement('tr');
+    row.className="status-"+statusCode(d);
+    row.innerHTML=`<td>${it.name}</td><td>${it.type}</td><td>${it.storage}</td><td>${it.buyDate}</td><td>${it.expDate}</td><td>${d}</td>
+    <td>${it.notifyOn?"✔️":"❌"}</td>
+    <td><button onclick="toggleNotify(${it.id})">🔔</button><button onclick="delItem(${it.id})">🗑️</button></td>`;
+    tbody.appendChild(row);
+  });
+  renderCalendar();
+}
+function renderCalendar(){
+  const calEl=document.getElementById('calendar');
+  calEl.innerHTML="";
+  const cal=new FullCalendar.Calendar(calEl,{initialView:'dayGridMonth',events:items.map(it=>({
+    title:it.name, start:it.expDate, color:it.expDate?statusColor(daysLeft(it.expDate)):'#ccc'
+  }))});
+  cal.render();
+}
+function statusColor(d){ return d<0?'#9e9e9e':(d<=2?'#f44336':(d<=5?'#ffeb3b':'#4caf50')); }
+async function enableNotify(){
+  if(!("Notification" in window)) return alert("Browser ไม่รองรับ");
+  const p=await Notification.requestPermission();
+  if(p==='granted'){ alert("เปิดการแจ้งเตือนแล้ว"); }
+}
+setInterval(()=>{
+  items.forEach(it=>{
+    const d=daysLeft(it.expDate);
+    if(it.notifyOn && d>=0 && d<=it.notifyDays){
+      new Notification(`${it.name} ใกล้หมดอายุใน ${d} วัน`,{body:it.type});
+    }
+  });
+},60000);
+
+async function loadTips(){
+  const res=await fetch('tips.json'); const tips=await res.json();
+  const div=document.getElementById('tips');
+  div.innerHTML=tips.map(t=>`<h3>${t.type}</h3><ul>`+t.tips.map(x=>`<li>${x}</li>`).join('')+`</ul>`).join('');
+}
+loadTips();
+
+render();
+</script>
+</body>
+</html>
